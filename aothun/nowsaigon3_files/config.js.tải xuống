@@ -1,0 +1,3 @@
+
+window[window["TiktokAnalyticsObject"]].instance("BQIKINGAC2KB0QR0QO4G").setAdvancedMatchingAvailableProperties({"email":false,"phone_number":false});
+window[window["TiktokAnalyticsObject"]].instance("BQIKINGAC2KB0QR0QO4G").setPixelInfo && window[window["TiktokAnalyticsObject"]].instance("BQIKINGAC2KB0QR0QO4G").setPixelInfo({status: 0, name: "Vuong Kinh Pixel", advertiserID: "6819931868549349381", setupMode: 0, partner: ""});

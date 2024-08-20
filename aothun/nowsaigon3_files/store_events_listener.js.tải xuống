@@ -1,0 +1,117 @@
+﻿(function() {
+	function onAddProduct(item, quantity) {
+		if (window.gtag) {
+			gtag('event', 'add_to_cart', {
+				items: [
+					{
+						currency: window.BizwebAnalytics.meta.currency,
+						id: item.product_id,
+						name: item.title,
+						brand: item.vendor,
+						category: item.product_type,
+						variant: item.variant_title,
+						quantity: quantity,
+						price: String(item.price)
+					}
+				]
+			});
+		}
+		if (window.fbq) {
+			fbq('track', 'AddToCart', {
+				content_ids: item.product_id,
+				content_type: 'product',
+				value: String(item.price),
+				currency: window.BizwebAnalytics.meta.currency
+			});
+		}
+	}
+	
+	function parseQuantity(query) {
+		for (var kvs = query.split("&"), n = 0; n < kvs.length; n++) {
+			var kv = kvs[n].split("=");
+			if ("quantity" === kv[0]) return parseInt(kv[1]);
+		}
+		return 1;
+	}
+	
+	function NewXMLHttpRequest(xhr, url, method, body) {
+		this.xhr = xhr;
+		this.url = url;
+		this.method = method;
+		this.body = body;
+	}
+	
+	NewXMLHttpRequest.prototype.onReadyStateChange = function() {
+		if (this.xhr.readyState === XMLHttpRequest.DONE) {
+			this.handleXhrDone({
+				method: this.method,
+				url: this.url,
+				body: this.body,
+				xhr: this.xhr
+			});
+		}
+		this.oldOnReadyStateChange && this.oldOnReadyStateChange(this.xhr);
+	}
+	
+	NewXMLHttpRequest.prototype.handleXhrDone = function(data) {
+		try {
+			switch (data.url) {
+				case "/cart/add.js":
+					data.xhr.responseText && onAddProduct(JSON.parse(data.xhr.responseText), parseQuantity(data.body));
+					break;
+				case "/cart/change.js":
+				case "/cart/clear.js":
+				case "/cart.js":
+					break;
+			}
+		} catch (e) {
+			console && console.warn && console.warn("[shop_events_listener] Error in handleXhrDone:  " + e.message)
+		}
+		return data;
+	}
+	
+	var oldOpen = XMLHttpRequest.prototype.open;
+	var oldSend = XMLHttpRequest.prototype.send;
+	
+	XMLHttpRequest.prototype.open = function(method, url) {
+		this._url = url;
+		this._method = method;
+		return oldOpen.apply(this, arguments);
+	}
+	
+	XMLHttpRequest.prototype.send = function(body) {
+		var xhr = new NewXMLHttpRequest(this, this._url, this._method, body);
+		if (this.addEventListener) {
+			this.addEventListener("readystatechange", xhr.onReadyStateChange.bind(xhr), false);
+		} else {
+			xhr.oldOnReadyStateChange = this.onreadystatechange;
+			this.onreadystatechange = xhr.onReadyStateChange;
+		}
+		return oldSend.call(this, body);
+	}
+
+	var oldFetch = window.fetch;
+	if ("function" == typeof oldFetch) {
+		window.fetch = function() {
+			return oldFetch.apply(window, Array.prototype.slice.call(arguments)).then(function(res) {
+				if (!res.ok) {
+					return res;
+				}
+				try {
+					switch (true) {
+						case res.url.includes("/cart/add.js"):
+							onAddProduct(res, parseQuantity(arguments[1].body));
+							break;
+						case res.url.includes("/cart/change.js"):
+						case res.url.includes("/cart/clear.js"):
+						case res.url.includes("/cart.js"):
+							break;
+					}
+				} catch (e) {
+					console && console.warn && console.warn("[shop_events_listener] Error in handleFetchRequest:  " + e.message);
+				}
+				return res;
+			});
+		}
+	}
+})();
